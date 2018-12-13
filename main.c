@@ -52,10 +52,12 @@ void mostrar_tab_jugador(char mat[TAM][TAM]){
     for(j=0;j<TAM;j++){
         printf("%d\t", j);
         for(i=0;i<TAM;i++){
+            if(!mat[i][j])
+                printf("~\t"); // Si hay agua, ~
             else if(mat[i][j]==5)
-                printf("x\t"); //Si han disparado al agua, x
+                printf("-\t"); //Si han disparado al agua, -
             else if(mat[i][j]>0)
-                printf("%d\t", mat[i][j]); //Si hay un barco, n
+                printf("%d\t", mat[i][j]); //Si hay un barco, n (4,3,2 o 1)
             else if(mat[i][j]<0){
                     if(toc_o_hun(mat,i,j,5))
                         printf("x\t");
