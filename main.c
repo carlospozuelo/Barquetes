@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <ctype.h>
+#include <math.h>
+#include<windows.h> // librería incluida para hacer el turno de la máquina más lento (sleep)
 #define TAM 12
 
 int VALIDO(int A){ // Función QUE DEVUELVE 1 SI EL NUMERO ES VALIDO, CERO SI NO.
@@ -18,7 +20,7 @@ int toc_o_hun(char mat[TAM][TAM], int x, int y){ //Función que devuelve 1 si el 
                     return(1);
             } else
                 aux=0;  // La posición hacia la derecha es 0 o 5; por lo que hay que descartar la derecha.
-            if(mat[x-i][y]&&mat[x-i][y]!=5&&VALIDO(x+i)&&aux2){
+            if(mat[x-i][y]&&mat[x-i][y]!=5&&VALIDO(x-i)&&aux2){
                 if(mat[x-i][y]>0) //Si la posición 'i' casillas hacia la izquierda es 1,2,3,4 -> el barco NO está hundido -> Está tocado -> return(1)
                     return(1);
             } else
@@ -275,14 +277,14 @@ void mostrar_tab_maquina(char mat[TAM][TAM]){
 
     for(i=0;i<TAM;i++)
         printf("%d\t", i);
-    printf("\n");
+    printf("\n__________________________________________________________________________________________________________\n");
     for(j=0;j<TAM;j++){
-        printf("%d\t", j);
+        printf("%2d|\t", j);
         for(i=0;i<TAM;i++){
             if(mat[i][j]==5)
-                printf("-\t"); //Si han disparado al agua, -
+                printf("~\t"); //Si han disparado al agua, -
             else if(mat[i][j]>=0)
-                printf("~\t"); //Si hay un barco o agua, ~
+                printf(" \t"); //Si hay un barco o agua, ~
             else if(mat[i][j]<0){
                     if(toc_o_hun(mat,i,j))
                         printf("x\t");
@@ -290,14 +292,34 @@ void mostrar_tab_maquina(char mat[TAM][TAM]){
                         printf("X\t");
             }
         }
-        printf("\n");
+        printf("\n\n");
     }
 
 
 }
 
-int disparo(char juga[TAM][TAM], char maqui[TAM][TAM], char bar_rest[4], int turno){ // Turno = 0 si ataca la máquina, 1 si ataca el jugador.
-    int x, y, aux=0, i;
+int alguntoc(char tab[TAM][TAM]){ // Función que deveulve 1 si hay algún barco tocado (sin hundir), 0 sino
+    int i, j;
+
+    for(j=0;j<TAM;j++){
+        for(i=0;i<TAM;i++){
+            if (tab[i][j]<0){
+                if(toc_o_hun(tab,i,j))
+                    return(1);
+            }
+        }
+    }
+
+    return(0);
+}
+
+int negaono(){ // devuelve 1 o -1
+    int i=rand()%2;
+    return(i?1:-1);
+}
+
+int disparo(char juga[TAM][TAM], char maqui[TAM][TAM], int bar_rest[4], int turno){ // Turno = 0 si ataca la máquina, 1 si ataca el jugador.
+    int x, y, aux=0, i, j, bartota, direc;
 
     if(turno){ // Ataque del jugador
         do{
@@ -314,61 +336,164 @@ int disparo(char juga[TAM][TAM], char maqui[TAM][TAM], char bar_rest[4], int tur
                     fflush(stdin);
                 }while(!VALIDO(y));
                 if(maqui[x][y]==5||maqui[x][y]<0)
-                    printf("\n¡Esa casilla es invalida! Selecciona otra. ");
-            }while(maqui[x][y]!=5&&maqui[x][y]<0);
+                    printf("\n¡Esa casilla es invalida! Selecciona otra.\n");
+            }while(maqui[x][y]==5||maqui[x][y]<0);
             if(maqui[x][y]==0){
                 printf("\nAgua...\n");
                 maqui[x][y]=5;
                 aux=0;
-            } else{
+
+            }else{
                 printf("\n\t\t\t\t--- Tocado ");
                 maqui[x][y]*=-1;
                 aux=1;
                 if (!toc_o_hun(maqui,x,y)){
                     printf("y hundido ---\n");
-                    if (maqui[x][y]*-1==1)
-                        bar_rest[3]--; // FALTA rellenar con 5 las casillas adyacentes al barco hundido.
-                    else if(maqui[x][y]*-1==2)
-                        bar_rest[2]--;
-                    else if(maqui[x][y]*-1==1)
-                        bar_rest[1]--;
-                    else
-                        bar_rest[0]--;
+                    bar_rest[abs(maqui[x][y])==1?3:abs(maqui[x][y])==2?2:abs(maqui[x][y])==3?1:0]--;
+                    rellecinco(maqui,x,y);
                 }else
                     printf("---\n");
             }
+        for(i=0, bartota=0;i<4;i++)
+            bartota+=bar_rest[i];
+        if(!bartota)
+            return(bartota);
         }while(aux);
-    } else{
+    }
+    else{ //TURNO DE LA MAQUINA
         do{
             aux=0;
-            do{
-                x=rand()%12;
-                y=rand()%12;
-            }while(juga[x][y]!=5||juga[x][y]<0);
+            if(!alguntoc(juga)){ // Si no hay ningún barco tocado, se generan disparos aleatorios.
+                do{
+                    x=rand()%12;
+                    y=rand()%12;
+                }while(juga[x][y]==5||juga[x][y]<0);
+            }
+            else{
+                for(j=0;j<TAM;j++){
+                    for(i=0;i<TAM;i++){
+                        if (juga[i][j]<0){
+                            if(toc_o_hun(juga,i,j)){
+                                do{
+                                    do{
+                                        x=i+(negaono()*rand()%4);
+                                    }while(!VALIDO(x));
+                                    do{
+                                        y=j+(negaono()*+rand()%4);
+                                    }while(!VALIDO(y));
+                                }while(juga[x][y]==5||juga[x][y]<0);
+                            }  // Si hay un barco negativo y está tocado (no hundido), se dispara alrededor de él hasta que se hunda
+                        }
+                    }
+                }
+            }
             if(juga[x][y]==0){
                 printf("\n(%d,%d) - Agua.", x, y);
                 juga[x][y]=5;
+                aux=0;
+            } else if (juga[x][y]==5){
+                aux=1;
             } else {
                 printf("\n(%d,%d) - TOCADO", x,y);
                 juga[x][y]*=-1;
                 aux=1;
                 if(!toc_o_hun(juga,x,y)){
                     printf(" Y HUNDIDO -");
-                    bar_rest[juga[x][y]==-1?3:juga[x][y]==-2?2:juga[x][y]==-3?1:0]--; // FALTA rellenar con 5 las casillas adyacentes al barco hundido. También falta mejorar la aleatoriedad del programa.
+                    bar_rest[juga[x][y]==-1?3:juga[x][y]==-2?2:juga[x][y]==-3?1:0]--;
+                    rellecinco(juga,x,y);
                 }
                 else
                     printf(" -");
             }
+            for(i=0, bartota=0;i<4;i++)
+                bartota+=bar_rest[i];
+            if(!bartota)
+                return(bartota);
+
+            Sleep(1000); //Delay de 1 segundo
         }while(aux);
     }
 
-    for(i=0, aux=0;i<4;i++)
-        aux+=bar_rest[i];
 
-    return(aux);
+    for(i=0, bartota=0;i<4;i++)
+                bartota+=bar_rest[i];
+    return(bartota);
     }
 
-void impri(char tab[TAM][TAM]){
+int rellecinco(char tab[TAM][TAM], int x, int y){ // Función que rellena con 5 las casillas al rededor de un barco después de que este haya sido hundido
+    int i, aux, aux2;
+
+    if(tab[x+1][y]<0||tab[x-1][y]<0){ //El barco está en horizontal
+        for(i=0, aux=1, aux2=1;i<4;i++){
+            if(tab[x+i][y]<0&&VALIDO(x+i)&&aux){ //El barco continúa por la derecha y la derecha no está descartada
+                tab[x+i+1][y]=tab[x+i+1][y]==0?VALIDO(x+i+1)?5:tab[x+i+1][y]:tab[x+i+1][y];
+                tab[x+i+1][y+1]=tab[x+i+1][y+1]==0?VALIDO(x+i+1)?VALIDO(y+1)?5:tab[x+i+1][y+1]:tab[x+i+1][y+1]:tab[x+i+1][y+1];
+                tab[x+i][y+1]=tab[x+i][y+1]==0?VALIDO(y+1)?5:tab[x+i][y+1]:tab[x+i][y+1];
+                tab[x+i-1][y+1]=tab[x+i-1][y+1]==0?VALIDO(x+i-1)?VALIDO(y+1)?5:tab[x+i-1][y+1]:tab[x+i-1][y+1]:tab[x+i-1][y+1];
+                tab[x+i-1][y]=tab[x+i-1][y]==0?VALIDO(x+i-1)?5:tab[x+i-1][y]:tab[x+i-1][y];
+                tab[x+i-1][y-1]=tab[x+i-1][y-1]==0?VALIDO(x+1-1)?VALIDO(y-1)?5:tab[x+i-1][y-1]:tab[x+i-1][y-1]:tab[x+i-1][y-1];
+                tab[x+i][y-1]=tab[x+i][y-1]==0?VALIDO(y-1)?5:tab[x+i][y-1]:tab[x+i][y-1];
+                tab[x+i+1][y-1]=tab[x+i+1][y-1]==0?VALIDO(x+i+1)?VALIDO(y-1)?5:tab[x+i+1][y-1]:tab[x+i+1][y-1]:tab[x+i+1][y-1];
+
+            } else
+                aux=0;
+            if(tab[x-i][y]<0&&VALIDO(x-i)&&aux2){ //El barco continúa por la izquierda y la izquierda no está descartada
+                tab[x-i+1][y]=tab[x-i+1][y]==0?VALIDO(x-i+1)?5:tab[x-i+1][y]:tab[x-i+1][y];
+                tab[x-i+1][y+1]=tab[x-i+1][y+1]==0?VALIDO(x-i+1)?VALIDO(y+1)?5:tab[x-i+1][y+1]:tab[x-i+1][y+1]:tab[x-i+1][y+1];
+                tab[x-i][y+1]=tab[x-i][y+1]==0?VALIDO(y+1)?5:tab[x-i][y+1]:tab[x-i][y+1];
+                tab[x-i-1][y+1]=tab[x-i-1][y+1]==0?VALIDO(x-i-1)?VALIDO(y+1)?5:tab[x-i-1][y+1]:tab[x-i-1][y+1]:tab[x-i-1][y+1];
+                tab[x-i-1][y]=tab[x-i-1][y]==0?VALIDO(x-i-1)?5:tab[x-i-1][y]:tab[x-i-1][y];
+                tab[x-i-1][y-1]=tab[x-i-1][y-1]==0?VALIDO(x-i-1)?VALIDO(y-1)?5:tab[x-i-1][y-1]:tab[x-i-1][y-1]:tab[x-i-1][y-1];
+                tab[x-i][y-1]=tab[x-i][y-1]==0?VALIDO(y-1)?5:tab[x-i][y-1]:tab[x-i][y-1];
+                tab[x-i+1][y-1]=tab[x-i+1][y-1]==0?VALIDO(x-i+1)?VALIDO(y-1)?5:tab[x-i+1][y-1]:tab[x-i+1][y-1]:tab[x-i+1][y-1];
+
+            } else
+                aux2=0;
+        }
+
+    }else if(tab[x][y+1]<0||tab[x][y-1]){ //El barco está en vertical
+        for(i=0, aux=1, aux2=1;i<4;i++){
+            if(tab[x][y+i]<0&&VALIDO(y+i)&&aux){ //El barco continúa por la abajo y la abajo no está descartada
+                tab[x+1][y+i]=tab[x+1][y+i]==0?VALIDO(x+1)?5:tab[x+1][y+i]:tab[x+1][y+i];
+                tab[x+1][y+1+i]=tab[x+1][y+i+1]==0?VALIDO(x+1)?VALIDO(y+1+i)?5:tab[x+1][y+1+i]:tab[x+1][y+1+i]:tab[x+1][y+i+1];
+                tab[x][y+1+i]=tab[x][y+1+i]==0?VALIDO(y+1+i)?5:tab[x][y+1+i]:tab[x][y+1+i];
+                tab[x-1][y+1+i]=tab[x-1][y+i+1]==0?VALIDO(y+1+i)?VALIDO(x-1)?5:tab[x-1][y+1+i]:tab[x-1][y+1+i]:tab[x-1][y+1+i];
+                tab[x-1][y+i]=tab[x-1][y+i]==0?VALIDO(x-1)?5:tab[x-1][y+i]:tab[x-1][y+i];
+                tab[x-1][y-1+i]=tab[x-1][y+i-1]==0?VALIDO(x-1)?VALIDO(y-1+i)?5:tab[x-1][y-1+i]:tab[x-1][y-1+i]:tab[x-1][y+i-1];
+                tab[x][y-1+i]=tab[x][y+i-1]==0?VALIDO(y-1+i)?5:tab[x][y-1+i]:tab[x][y-1+i];
+                tab[x+1][y-1+i]=tab[x+1][y+i-1]==0?VALIDO(x+1)?VALIDO(y-1+i)?5:tab[x+1][y-1+i]:tab[x+1][y-1+i]:tab[x+1][y+i-1];
+
+            } else
+                aux=0;
+            if(tab[x][y-i]<0&&VALIDO(y-i)&&aux2){ //El barco continúa por la izquierda y la izquierda no está descartada
+                tab[x+1][y-i]=tab[x+1][y-i]==0?VALIDO(x+1)?5:tab[x+1][y-i]:tab[x+1][y-i];
+                tab[x+1][y+1-i]=tab[x+1][y-i+1]==0?VALIDO(x+1)?VALIDO(y+1-i)?5:tab[x+1][y+1-i]:tab[x+1][y+1-i]:tab[x+1][y-i+1];
+                tab[x][y+1-i]=tab[x][y+1-i]==0?VALIDO(y+1-i)?5:tab[x][y+1-i]:tab[x][y+1-i];
+                tab[x-1][y+1-i]=tab[x-1][y-i+1]==0?VALIDO(x-1)?VALIDO(y+1-i)?5:tab[x-1][y+1-i]:tab[x-1][y+1-i]:tab[x-1][y+1-i];
+                tab[x-1][y-i]=tab[x-1][y-i]==0?VALIDO(x-1)?5:tab[x-1][y-i]:tab[x-1][y-i];
+                tab[x-1][y-1-i]=tab[x-1][y-i-1]==0?VALIDO(x-1)?VALIDO(y-1-i)?5:tab[x-1][y-1-i]:tab[x-1][y-1-i]:tab[x-1][y-i-1];
+                tab[x][y-1-i]=tab[x][y-i-1]==0?VALIDO(y-1-i)?5:tab[x][y-1-i]:tab[x][y-1-i];
+                tab[x+1][y-1-i]=tab[x+1][y-i-1]==0?VALIDO(x+1)?VALIDO(y-1-i)?5:tab[x+1][y-1-i]:tab[x+1][y-1-i]:tab[x+1][y-i-1];
+
+            } else
+                aux2=0;
+        }
+
+    }
+    else{ // el barco es de 1 casilla
+        tab[x+1][y]=VALIDO(x+1)?5:tab[x+1][y];
+        tab[x+1][y+1]=VALIDO(x+1)?VALIDO(y+1)?5:tab[x+1][y+1]:tab[x+1][y+1];
+        tab[x][y+1]=VALIDO(y+1)?5:tab[x][y+1];
+        tab[x-1][y+1]=VALIDO(x-1)?VALIDO(y+1)?5:tab[x-1][y+1]:tab[x-1][y+1];
+        tab[x-1][y]=VALIDO(x-1)?5:tab[x-1][y];
+        tab[x-1][y-1]=VALIDO(x-1)?VALIDO(y-1)?5:tab[x-1][y-1]:tab[x-1][y-1];
+        tab[x][y-1]=VALIDO(y-1)?5:tab[x][y-1];
+        tab[x+1][y-1]=VALIDO(x+1)?VALIDO(y-1)?5:tab[x+1][y-1]:tab[x+1][y-1];
+    }
+
+}
+
+void impri(char tab[TAM][TAM]){ //Imrpime la matriz sin formato especial. He usado esta función para agilizar la prueba del programa
     int i, j;
 
     for(j=0;j<TAM;j++){
@@ -380,39 +505,52 @@ void impri(char tab[TAM][TAM]){
 
 int main(){
     char maqui[TAM][TAM]={0}, juga[TAM][TAM]={0};
-    int barjuga[4]={1,2,3,4}, barmaqui[4]={1,2,3,4}, turno, elemjuga=10, elemaqui=10, i; //elemjuga y elemaqui representan la suma de todos los elementos del array barjuga y barmaqui, es decir, la cantidad de barcos restantes.
+    int barjuga[4]={1, 2, 3, 4}, barmaqui[4]={1, 2, 3, 4}, turno, elemjuga=10, elemaqui=10; //elemjuga y elemaqui representan la suma de todos los elementos del array barjuga y barmaqui, es decir, la cantidad de barcos restantes.
 
     srand(time(NULL));
 
     printf("\t\t\t\t\t CARLOS POZUELO RIVAS. GM-12\n");
 
-    //inic_tab_jugador(juga);
+    inic_tab_jugador(juga);
+    //inic_tab_maqui(juga);
     inic_tab_maqui(maqui);
-    inic_tab_maqui(juga);
     printf("\n");
-    impri(maqui);
+    //impri(maqui);
     printf("\n");
     turno=rand()%2; // 0 -> maquina; 1-> jugador
 
     do{
         if(turno){ // TURNO DEL JUGADOR
+            printf("\n\n\t\t\t\t\t --- TU  TURNO ---\n");
             puts("\t\t\t\t\t---- TU TABLERO ----\n\n");
             mostrar_tab_jugador(juga);
             printf("\n\n");
+            Sleep(2000);
             puts("\t\t\t\t\t---- TABLERO DE LA MAQUINA ----\n\n");
-            disparo(juga,maqui,barmaqui,turno);
+            elemaqui=disparo(juga,maqui,barmaqui,turno);
             turno=0;
-            for(i=0,elemaqui=0;i<4;i++)
-                elemaqui+=barmaqui[i];
-
-            printf("%d,%d,%d,%d    -   %d", barmaqui[0],barmaqui[1],barmaqui[2],barmaqui[3], elemaqui);
+            printf("\n\t\t\t\t RESUMEN\nbarcos de 4 casillas restantes: %d\nbarcos de 3 casillas restantes: %d\n", barmaqui[0],barmaqui[1]);
+            printf("barcos de 2 casillas restantes: %d\nbarcos de 1 casilla  restantes: %d\n\n\t\tTOTAL RESTANTE: %d\n", barmaqui[2],barmaqui[3],elemaqui);
+            Sleep(2000);
         }
         if(!turno){ // TURNO DE LA MAQUINA
-            disparo(juga,maqui,barjuga,turno);
+            printf("\n\t\t\t\t --- TURNO DE LA MAQUINA ---\n");
+            elemjuga=disparo(juga,maqui,barjuga,turno);
+            printf("\n\t\t\t\t RESUMEN\nbarcos de 4 casillas restantes: %d\nbarcos de 3 casillas restantes: %d\n", barjuga[0],barjuga[1]);
+            printf("barcos de 2 casillas restantes: %d\nbarcos de 1 casilla  restantes: %d\n\n\t\tTOTAL RESTANTE: %d\n", barjuga[2],barjuga[3],elemjuga);
             turno=1;
+            Sleep(2000);
         }
 
-    }while(!elemaqui&&!elemjuga);
+    }while(elemaqui&&elemjuga);
 
+    if(!elemaqui){
+        printf("\nEnhorabuena, ¡¡¡Has ganado!!!\n");
+        mostrar_tab_jugador(juga);
+    }
+    else{
+        printf("\n...Lo siento, has perdido...\n¡Mas suerte la proxima vez!\n");
+        mostrar_tab_jugador(maqui);
+    }
 
 }
